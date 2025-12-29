@@ -1,0 +1,20 @@
+# Block ALL spreadsheets (real data)
+*.xlsx
+*.xls
+
+# Block private data folders (if they ever get copied accidentally)
+data_private/
+outputs_private/
+
+# Block CSVs everywhere by default
+*.csv
+
+# ...but ALLOW masked CSVs inside /data
+!data/*.csv
+
+# Python / OS
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+env/
