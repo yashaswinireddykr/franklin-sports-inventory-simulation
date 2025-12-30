@@ -1,6 +1,8 @@
 import pandas as pd
 import streamlit as st
 from pathlib import Path
+from src.model import SimParams, simulate_inventory_po
+import numpy as np
 
 # -------------------------
 # Page config
@@ -86,18 +88,32 @@ st.divider()
 # -------------------------
 st.subheader("Simulation Results")
 
-if not run:
-    st.info("Set parameters in the sidebar and click **Run simulation**.")
 else:
-    # Placeholder outputs for UI flow (we'll replace with real simulation logic next)
-    st.success("Simulation ran successfully (placeholder). Next step: plug in your actual model logic.")
+    params = SimParams(
+        horizon_weeks=horizon_weeks,
+        lead_time_weeks=lead_time_weeks,
+        review_period_weeks=review_period_weeks,
+        service_level=service_level / 100.0,
+        safety_factor=safety_factor,
+        num_sims=num_sims
+    )
 
-    r1, r2, r3 = st.columns(3)
-    r1.metric("Recommended PO Qty (units)", "—")
-    r2.metric("Weeks of Cover", "—")
-    r3.metric("Stockout Risk", "—")
+    df_asin = filtered_df[filtered_df["asin"] == selected_asin].copy()
 
-    st.caption("Next: we will compute these using your Franklin simulation model and masked dataset.")
+    try:
+        out = simulate_inventory_po(df_asin, params)
+        st.success("Simulation ran successfully ✅")
 
-with st.expander("📊 Preview filtered dataset (optional)"):
-    st.dataframe(filtered_df.head(25), use_container_width=True)
+        r1, r2, r3 = st.columns(3)
+        r1.metric("Recommended PO Qty (units)", f"{out['recommended_po_qty']:.0f}")
+        r2.metric("Weeks of Cover", f"{out['weeks_of_cover']:.1f}")
+        r3.metric("Stockout Risk", f"{out['stockout_risk']*100:.1f}%")
+
+        st.subheader("Inventory trajectory (average across simulations)")
+        st.line_chart(out["sim_table"].set_index("week")[["avg_onhand", "forecast_demand"]])
+
+        with st.expander("See simulation table"):
+            st.dataframe(out["sim_table"], use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Simulation failed: {e}")
